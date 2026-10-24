@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   Sparkles,
   Download,
+  FileText,
   Terminal,
   AlertCircle,
   CheckCircle2,
@@ -17,6 +18,7 @@ import RecommendationCard from './components/RecommendationCard';
 import SourceLinks from './components/SourceLinks';
 import LoadingState from './components/LoadingState';
 import { compareWebsites } from './services/api';
+import { exportComparisonPdf } from './services/pdfExport';
 
 export default function App() {
   const [urlA, setUrlA] = useState('');
@@ -27,6 +29,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
   const [showLogs, setShowLogs] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const handleCompare = async () => {
     if (!urlA.trim() || !urlB.trim()) {
@@ -50,6 +53,19 @@ export default function App() {
       setError(err.message || 'Failed to compare websites. Please verify URLs.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleExportPdf = () => {
+    if (!result) return;
+    setIsExportingPdf(true);
+    try {
+      exportComparisonPdf(result);
+    } catch (err) {
+      console.error('PDF Export Error:', err);
+      alert('Failed to generate PDF: ' + err.message);
+    } finally {
+      setIsExportingPdf(false);
     }
   };
 
@@ -118,14 +134,25 @@ export default function App() {
             <span>Live Web Agent Active</span>
           </div>
           {result && (
-            <button
-              onClick={handleExportMarkdown}
-              className="export-btn"
-              title="Export Report to Markdown"
-            >
-              <Download size={14} />
-              <span>Export Report</span>
-            </button>
+            <div className="export-actions-group">
+              <button
+                onClick={handleExportPdf}
+                className="export-btn export-pdf-btn"
+                title="Download Executive PDF Report"
+                disabled={isExportingPdf}
+              >
+                <FileText size={14} className="icon-pdf" />
+                <span>{isExportingPdf ? 'Generating PDF...' : 'Download PDF'}</span>
+              </button>
+              <button
+                onClick={handleExportMarkdown}
+                className="export-btn"
+                title="Export Report to Markdown"
+              >
+                <Download size={14} />
+                <span>Markdown</span>
+              </button>
+            </div>
           )}
         </div>
       </header>
@@ -194,7 +221,16 @@ export default function App() {
                   </strong>
                 </span>
               </div>
-              <div className="meta-right">
+              <div className="meta-right-actions">
+                <button
+                  onClick={handleExportPdf}
+                  className="export-btn export-pdf-btn"
+                  title="Download Executive PDF Report"
+                  disabled={isExportingPdf}
+                >
+                  <FileText size={14} className="icon-pdf" />
+                  <span>{isExportingPdf ? 'Generating PDF...' : 'Download PDF Report'}</span>
+                </button>
                 <button
                   className="logs-toggle-btn"
                   onClick={() => setShowLogs(!showLogs)}
@@ -262,7 +298,7 @@ export default function App() {
           </p>
           <div className="footer-links">
             <span className="footer-tag">⚡ Live Web Grounded</span>
-            <span className="footer-tag">🐠 TinyFish Integration</span>
+            <span className="footer-tag">📄 PDF & Markdown Export</span>
             <span className="footer-tag">🛡️ Zero Synthetic Data</span>
           </div>
         </div>
