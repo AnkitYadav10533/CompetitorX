@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Globe, ArrowRight, Sparkles, Key, Zap, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Globe, ArrowRight, Sparkles, Key, CheckCircle2, RefreshCw } from 'lucide-react';
 
 const COMMON_REQUIREMENTS = [
   'Overall Market Comparison',
@@ -20,11 +20,9 @@ export default function UrlInput({
   setApiKey,
   onCompare,
   loading,
-  presets,
-  onSelectPreset,
 }) {
   const [showKeyModal, setShowKeyModal] = useState(false);
-  const [customReq, setCustomReq] = useState(false);
+  const [isCustomReq, setIsCustomReq] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -40,33 +38,13 @@ export default function UrlInput({
 
   return (
     <div className="url-input-container">
-      {/* Quick Presets Bar */}
-      <div className="presets-bar">
-        <span className="presets-label">
-          <Zap size={14} className="accent-icon" /> Quick Demo Presets:
-        </span>
-        <div className="presets-list">
-          {presets.map((preset) => (
-            <button
-              key={preset.id}
-              type="button"
-              className="preset-chip"
-              onClick={() => onSelectPreset(preset)}
-              title={preset.suggestedRequirement}
-            >
-              {preset.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       <form onSubmit={handleSubmit} className="search-card glass-panel">
         <div className="input-grid">
           {/* Product A Input */}
           <div className="url-field-wrapper">
             <div className="field-header">
               <span className="badge badge-primary">Competitor 1 (Product A)</span>
-              {urlA && <span className="valid-check"><CheckCircle2 size={13} /> Ready</span>}
+              {urlA.trim() && <span className="valid-check"><CheckCircle2 size={13} /> Ready</span>}
             </div>
             <div className="input-icon-box">
               <Globe size={18} className="field-icon icon-cyan" />
@@ -74,10 +52,11 @@ export default function UrlInput({
                 id="input-url-a"
                 type="text"
                 className="url-input"
-                placeholder="e.g., https://supabase.com"
+                placeholder="Enter live website URL (e.g. https://your-site.com)"
                 value={urlA}
                 onChange={(e) => setUrlA(e.target.value)}
                 disabled={loading}
+                autoFocus
                 required
               />
               {urlA && (
@@ -99,8 +78,8 @@ export default function UrlInput({
               type="button"
               className="swap-btn"
               onClick={handleSwap}
-              title="Swap Competitors"
-              disabled={loading}
+              title="Swap Competitor URLs"
+              disabled={loading || (!urlA && !urlB)}
             >
               <RefreshCw size={15} />
             </button>
@@ -110,7 +89,7 @@ export default function UrlInput({
           <div className="url-field-wrapper">
             <div className="field-header">
               <span className="badge badge-secondary">Competitor 2 (Product B)</span>
-              {urlB && <span className="valid-check"><CheckCircle2 size={13} /> Ready</span>}
+              {urlB.trim() && <span className="valid-check"><CheckCircle2 size={13} /> Ready</span>}
             </div>
             <div className="input-icon-box">
               <Globe size={18} className="field-icon icon-purple" />
@@ -118,7 +97,7 @@ export default function UrlInput({
                 id="input-url-b"
                 type="text"
                 className="url-input"
-                placeholder="e.g., https://firebase.google.com"
+                placeholder="Enter competitor URL (e.g. https://rival-product.com)"
                 value={urlB}
                 onChange={(e) => setUrlB(e.target.value)}
                 disabled={loading}
@@ -142,9 +121,9 @@ export default function UrlInput({
         <div className="controls-row">
           <div className="requirement-selector">
             <label htmlFor="req-select" className="control-label">
-              <Sparkles size={14} className="accent-icon-sparkle" /> Evaluation Lens / Requirement:
+              <Sparkles size={14} className="accent-icon-sparkle" /> Evaluation Lens / User Requirement:
             </label>
-            {!customReq ? (
+            {!isCustomReq ? (
               <div className="select-with-custom">
                 <select
                   id="req-select"
@@ -152,7 +131,7 @@ export default function UrlInput({
                   value={userRequirement}
                   onChange={(e) => {
                     if (e.target.value === '__custom__') {
-                      setCustomReq(true);
+                      setIsCustomReq(true);
                       setUserRequirement('');
                     } else {
                       setUserRequirement(e.target.value);
@@ -160,6 +139,7 @@ export default function UrlInput({
                   }}
                   disabled={loading}
                 >
+                  <option value="">Select evaluation lens (or enter custom)...</option>
                   {COMMON_REQUIREMENTS.map((req, i) => (
                     <option key={i} value={req}>
                       {req}
@@ -173,7 +153,7 @@ export default function UrlInput({
                 <input
                   type="text"
                   className="custom-req-input"
-                  placeholder="e.g. Best for micro-SaaS with offline mobile support..."
+                  placeholder="e.g. Best for micro-SaaS with offline sync, or Lowest cost per active user..."
                   value={userRequirement}
                   onChange={(e) => setUserRequirement(e.target.value)}
                   autoFocus
@@ -182,11 +162,11 @@ export default function UrlInput({
                   type="button"
                   className="preset-switch-btn"
                   onClick={() => {
-                    setCustomReq(false);
+                    setIsCustomReq(false);
                     setUserRequirement(COMMON_REQUIREMENTS[0]);
                   }}
                 >
-                  Use Presets
+                  Choose Preset Lens
                 </button>
               </div>
             )}
@@ -209,42 +189,40 @@ export default function UrlInput({
         {/* Optional TinyFish API Key Drawer */}
         {showKeyModal && (
           <div className="key-drawer">
-            <div className="key-drawer-content">
-              <div className="key-drawer-header">
-                <div className="key-title">
-                  <Key size={16} className="icon-cyan" />
-                  <strong>TinyFish Agent Infrastructure Key</strong>
-                </div>
+            <div className="key-drawer-header">
+              <div className="key-title">
+                <Key size={16} className="icon-cyan" />
+                <strong>TinyFish Web Agent Infrastructure Key</strong>
+              </div>
+              <button
+                type="button"
+                className="close-drawer-btn"
+                onClick={() => setShowKeyModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <p className="key-desc">
+              CompetitorX connects to <code>POST https://api.fetch.tinyfish.ai</code> for headless browser rendering and token-optimized markdown extraction.
+              If left empty, CompetitorX will extract live webpage data via direct live web agent.
+            </p>
+            <div className="key-input-row">
+              <input
+                type="password"
+                placeholder="Paste your TinyFish API key (tf_...)"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                className="key-input"
+              />
+              {apiKey && (
                 <button
                   type="button"
-                  className="close-drawer-btn"
-                  onClick={() => setShowKeyModal(false)}
+                  className="clear-key-btn"
+                  onClick={() => setApiKey('')}
                 >
-                  ✕
+                  Clear
                 </button>
-              </div>
-              <p className="key-desc">
-                CompetitorX connects to <code>POST https://api.fetch.tinyfish.ai</code> for cloud browser rendering and token-optimized markdown extraction.
-                If empty, CompetitorX will automatically run our built-in resilient web research agent.
-              </p>
-              <div className="key-input-row">
-                <input
-                  type="password"
-                  placeholder="Paste your TinyFish API key (tf_...)"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  className="key-input"
-                />
-                {apiKey && (
-                  <button
-                    type="button"
-                    className="clear-key-btn"
-                    onClick={() => setApiKey('')}
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
+              )}
             </div>
           </div>
         )}
@@ -252,7 +230,7 @@ export default function UrlInput({
         {/* Submit CTA */}
         <div className="submit-row">
           <div className="action-hint">
-            <span>⚡ Automated agent extracts pricing, features, audience, & evidence quotes</span>
+            <span>⚡ Autonomous research agent extracts live pricing, features, audience & evidence quotes</span>
           </div>
           <button
             id="compare-submit-btn"
@@ -263,7 +241,7 @@ export default function UrlInput({
             {loading ? (
               <>
                 <span className="spinner"></span>
-                <span>Agent Researching...</span>
+                <span>Agent Researching Live Websites...</span>
               </>
             ) : (
               <>

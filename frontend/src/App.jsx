@@ -1,11 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Sparkles,
-  Layers,
   Download,
-  Share2,
   Terminal,
-  Activity,
   AlertCircle,
   CheckCircle2,
   Cpu,
@@ -19,37 +16,17 @@ import ComparisonTable from './components/ComparisonTable';
 import RecommendationCard from './components/RecommendationCard';
 import SourceLinks from './components/SourceLinks';
 import LoadingState from './components/LoadingState';
-import { compareWebsites, fetchPresets, fetchHealth } from './services/api';
+import { compareWebsites } from './services/api';
 
 export default function App() {
-  const [urlA, setUrlA] = useState('https://supabase.com');
-  const [urlB, setUrlB] = useState('https://firebase.google.com');
-  const [userRequirement, setUserRequirement] = useState('Best for open source developer wanting SQL database');
+  const [urlA, setUrlA] = useState('');
+  const [urlB, setUrlB] = useState('');
+  const [userRequirement, setUserRequirement] = useState('');
   const [apiKey, setApiKey] = useState('');
-  const [presets, setPresets] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
   const [showLogs, setShowLogs] = useState(false);
-  const [backendHealth, setBackendHealth] = useState(null);
-
-  // Load presets and check health on mount
-  useEffect(() => {
-    async function init() {
-      const p = await fetchPresets();
-      setPresets(p);
-      const h = await fetchHealth();
-      setBackendHealth(h);
-    }
-    init();
-  }, []);
-
-  const handleSelectPreset = (preset) => {
-    setUrlA(preset.urlA);
-    setUrlB(preset.urlB);
-    setUserRequirement(preset.suggestedRequirement);
-    setError(null);
-  };
 
   const handleCompare = async () => {
     if (!urlA.trim() || !urlB.trim()) {
@@ -64,7 +41,7 @@ export default function App() {
       const data = await compareWebsites({
         urlA,
         urlB,
-        userRequirement,
+        userRequirement: userRequirement || 'overall',
         apiKey,
       });
       setResult(data);
@@ -138,7 +115,7 @@ export default function App() {
         <div className="header-meta">
           <div className="agent-badge">
             <span className="live-pulse"></span>
-            <span>TinyFish Agent Active</span>
+            <span>Live Web Agent Active</span>
           </div>
           {result && (
             <button
@@ -165,12 +142,12 @@ export default function App() {
             Compare Any Two Products with <span className="headline-highlight">Evidence-Backed</span> Intelligence
           </h2>
           <p className="hero-description">
-            Enter two product URLs. CompetitorX uses TinyFish to retrieve live web content, extract pricing models,
-            audit features, verify target audiences, and synthesize side-by-side comparisons grounded in source citations.
+            Enter any two live product URLs. CompetitorX accesses the websites, extracts real pricing tiers,
+            audits features, identifies target audiences, and synthesizes side-by-side comparisons grounded in source evidence.
           </p>
         </section>
 
-        {/* URL Inputs & Preset Controls */}
+        {/* Live URL Inputs & Requirement Controls */}
         <UrlInput
           urlA={urlA}
           setUrlA={setUrlA}
@@ -182,8 +159,6 @@ export default function App() {
           setApiKey={setApiKey}
           onCompare={handleCompare}
           loading={loading}
-          presets={presets}
-          onSelectPreset={handleSelectPreset}
         />
 
         {/* Error Notification */}
@@ -211,11 +186,11 @@ export default function App() {
               <div className="meta-left">
                 <CheckCircle2 size={16} className="icon-success" />
                 <span>
-                  Comparison generated in real-time via{' '}
+                  Live comparison generated via{' '}
                   <strong>
                     {result.meta.provider === 'tinyfish'
                       ? 'TinyFish Headless Cloud Agent'
-                      : 'Direct Browser Web Agent'}
+                      : 'Live Web Research Agent'}
                   </strong>
                 </span>
               </div>
@@ -238,7 +213,7 @@ export default function App() {
                   <span className="term-dot red"></span>
                   <span className="term-dot yellow"></span>
                   <span className="term-dot green"></span>
-                  <span className="term-title">Agent Execution Trace & TinyFish Call Log</span>
+                  <span className="term-title">Agent Execution Trace & Live Research Log</span>
                 </div>
                 <div className="terminal-body">
                   {result.meta.retrievalLogs?.map((log, lIdx) => (
@@ -286,9 +261,9 @@ export default function App() {
             Built with React, Express, and TinyFish Live Web Agent Infrastructure.
           </p>
           <div className="footer-links">
-            <span className="footer-tag">⚡ Evidence Grounded</span>
+            <span className="footer-tag">⚡ Live Web Grounded</span>
             <span className="footer-tag">🐠 TinyFish Integration</span>
-            <span className="footer-tag">🛡️ Zero Hallucinations</span>
+            <span className="footer-tag">🛡️ Zero Synthetic Data</span>
           </div>
         </div>
       </footer>

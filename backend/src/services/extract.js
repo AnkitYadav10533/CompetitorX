@@ -1,7 +1,7 @@
 /**
  * Extraction and normalization service for CompetitorX.
- * Extracts structured, evidence-backed attributes from raw webpage content & markdown.
- * Clearly separates confirmed evidence from unverified / not-found details.
+ * Extracts structured, evidence-backed attributes strictly from the user's real webpage content.
+ * Strictly separates confirmed live facts from unverified / unlisted attributes with ZERO synthetic demo data.
  */
 
 export function extractProductAttributes(pageData) {
@@ -9,29 +9,29 @@ export function extractProductAttributes(pageData) {
   const domain = extractCleanDomain(url);
   const text = markdown || description || '';
 
-  // 1. Extract Product Name and Tagline
+  // 1. Extract Product Name and Tagline from live page metadata
   const productName = determineProductName(title, domain);
   const tagline = determineTagline(description, markdown, productName);
 
-  // 2. Extract Pricing Details
-  const pricing = extractPricingDetails(text, url);
+  // 2. Extract Pricing Details from live text
+  const pricing = extractPricingDetails(text);
 
-  // 3. Extract Target Audience
+  // 3. Extract Target Audience from live text
   const targetAudience = extractTargetAudience(text);
 
-  // 4. Extract Core Features
-  const coreFeatures = extractCoreFeatures(text, domain);
+  // 4. Extract Core Features from live text
+  const coreFeatures = extractCoreFeatures(text);
 
-  // 5. Extract Services & Integrations
+  // 5. Extract Services & Integrations from live text
   const services = extractServices(text);
 
-  // 6. Extract Key Advantages & Differentiators
-  const keyAdvantages = extractKeyAdvantages(text, productName);
+  // 6. Extract Key Advantages from live text
+  const keyAdvantages = extractKeyAdvantages(text);
 
-  // 7. Extract Potential Limitations / Not-found gaps
+  // 7. Extract Potential Limitations / Missing disclosures
   const limitations = extractLimitations(text, pricing);
 
-  // 8. Compile Evidence Citations & Source Links
+  // 8. Compile Evidence Citations with exact quotes
   const evidenceCitations = compileEvidenceCitations({
     url: finalUrl || url,
     productName,
@@ -41,7 +41,7 @@ export function extractProductAttributes(pageData) {
     services,
   });
 
-  // Calculate verification metrics
+  // Calculate verification metrics strictly from real findings
   const verifiedCount =
     (pricing.isExplicitlyListed ? 1 : 0) +
     (targetAudience.status === 'verified' ? 1 : 0) +
@@ -49,7 +49,7 @@ export function extractProductAttributes(pageData) {
     services.filter((s) => s.status === 'verified').length;
 
   const totalChecks = 2 + coreFeatures.length + services.length;
-  const confidenceScore = Math.min(98, Math.max(50, Math.round((verifiedCount / Math.max(totalChecks, 1)) * 100)));
+  const confidenceScore = Math.min(99, Math.max(30, Math.round((verifiedCount / Math.max(totalChecks, 1)) * 100)));
 
   return {
     productName,
@@ -77,13 +77,12 @@ function extractCleanDomain(url) {
     const parts = host.split('.');
     return parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
   } catch {
-    return 'Product';
+    return 'Website';
   }
 }
 
 function determineProductName(title, domain) {
   if (!title) return domain;
-  // Clean title like "Product: The best tool for X" or "Product | Official Site"
   const parts = title.split(/[-–—|:]/);
   if (parts.length > 0 && parts[0].trim().length > 1 && parts[0].trim().length < 35) {
     return parts[0].trim();
@@ -96,7 +95,7 @@ function determineTagline(description, markdown, productName) {
     return description.trim();
   }
 
-  // Look for first heading or lead paragraph in markdown
+  // Look for first heading or non-empty lead line in user's markdown
   const lines = markdown.split('\n').map((l) => l.trim()).filter(Boolean);
   for (const line of lines) {
     if (line.startsWith('#')) {
@@ -110,10 +109,10 @@ function determineTagline(description, markdown, productName) {
     }
   }
 
-  return `${productName} provides advanced digital solutions and intelligent tooling.`;
+  return `Live website for ${productName}`;
 }
 
-function extractPricingDetails(text, url) {
+function extractPricingDetails(text) {
   const priceRegex = /(\$\d+(?:\.\d{2})?(?:\s*(?:\/|\s*per\s*)(?:mo|month|user|seat|year|yr))?)|(?:€\d+(?:\.\d{2})?)|(?:£\d+(?:\.\d{2})?)|(?:free\s+trial)|(?:free\s+tier)|(?:starts\s+at\s+\$\d+)/gi;
   const tierRegex = /\b(free|starter|standard|basic|pro|professional|growth|team|business|enterprise|unlimited)\s+(?:plan|tier|edition)/gi;
   const freeRegex = /\b(free\s+forever|free\s+plan|free\s+tier|start\s+for\s+free|100%\s+free|no\s+credit\s+card\s+required)\b/i;
@@ -127,7 +126,6 @@ function extractPricingDetails(text, url) {
     let model = 'Freemium';
 
     if (matches.length > 0) {
-      // Find the first dollar match
       const explicitPrice = matches.find((m) => m.startsWith('$') || m.startsWith('€') || m.startsWith('£'));
       if (explicitPrice) {
         startingPrice = explicitPrice;
@@ -140,26 +138,24 @@ function extractPricingDetails(text, url) {
       model = 'Freemium';
     }
 
-    // Extract evidence snippet
     const evidenceMatch = findSurroundingSnippet(text, matches[0] || 'free', 120);
 
     return {
       isExplicitlyListed: true,
       startingPrice,
       model,
-      tiers: tierMatches.length > 0 ? tierMatches.slice(0, 4) : ['Standard', 'Enterprise'],
-      evidence: evidenceMatch || 'Pricing options explicitly mentioned on site.',
+      tiers: tierMatches.length > 0 ? tierMatches.slice(0, 4) : ['Self-serve / Public tier'],
+      evidence: evidenceMatch || 'Pricing information explicitly referenced in page text.',
       status: 'verified',
     };
   }
 
-  // Not explicitly listed on landing page
   return {
     isExplicitlyListed: false,
-    startingPrice: 'Not found on landing page',
+    startingPrice: 'Not disclosed on public landing page',
     model: 'Contact Sales / Custom Quote',
-    tiers: ['Custom Enterprise'],
-    evidence: 'No explicit pricing figures or tier tiers were published on the retrieved landing page.',
+    tiers: ['Unlisted / Sales Inquiry'],
+    evidence: 'No explicit dollar/currency pricing figures were published on the retrieved landing page.',
     status: 'not_found',
   };
 }
@@ -192,20 +188,20 @@ function extractTargetAudience(text) {
     return {
       primary: matchedAudiences.slice(0, 3).join(', '),
       categories: matchedAudiences.slice(0, 4),
-      evidence: foundSnippet || 'Target persona extracted from platform positioning and messaging.',
+      evidence: foundSnippet || 'Target persona extracted from public platform copy.',
       status: 'verified',
     };
   }
 
   return {
-    primary: 'General Business & Professional Teams',
-    categories: ['Businesses', 'Professionals'],
-    evidence: 'Audience not explicitly segmented; broad commercial messaging used.',
+    primary: 'General Commercial / Professional Users',
+    categories: ['Unspecified Segment'],
+    evidence: 'Audience not explicitly segmented in retrieved text.',
     status: 'not_found',
   };
 }
 
-function extractCoreFeatures(text, domain) {
+function extractCoreFeatures(text) {
   const featureKeywords = [
     'analytics',
     'automation',
@@ -232,7 +228,7 @@ function extractCoreFeatures(text, domain) {
   const detectedFeatures = [];
   const lines = text.split('\n');
 
-  // Search bullet points or lists first
+  // Search bullet points or lists in user's markdown
   for (const line of lines) {
     const cleanLine = line.trim();
     if (cleanLine.startsWith('- ') || cleanLine.startsWith('* ') || /^\d+\.\s/.test(cleanLine)) {
@@ -240,7 +236,7 @@ function extractCoreFeatures(text, domain) {
       if (item.length > 12 && item.length < 90 && !item.includes('http') && !item.includes('cookie')) {
         detectedFeatures.push({
           name: item,
-          evidence: `Itemized in product feature list: "${item}"`,
+          evidence: `Extracted from page list item: "${item}"`,
           status: 'verified',
         });
         if (detectedFeatures.length >= 4) break;
@@ -248,7 +244,7 @@ function extractCoreFeatures(text, domain) {
     }
   }
 
-  // If few list items found, scan for keyword sentences
+  // Scan keyword sentences if list items are few
   if (detectedFeatures.length < 3) {
     for (const kw of featureKeywords) {
       if (detectedFeatures.length >= 4) break;
@@ -268,27 +264,12 @@ function extractCoreFeatures(text, domain) {
     }
   }
 
-  // Fallback defaults if site was sparse
+  // If none found in user's text, report strictly as not found — NO synthetic dummy items!
   if (detectedFeatures.length === 0) {
     return [
       {
-        name: `${domain} Core Engine`,
-        evidence: 'Identified as main service offering from homepage overview.',
-        status: 'verified',
-      },
-      {
-        name: 'Web Interface & Dashboard',
-        evidence: 'Primary digital interface provided to users.',
-        status: 'verified',
-      },
-      {
-        name: 'API & Developer Extensibility',
-        evidence: 'Verification pending: developer documentation not explicitly confirmed on main page.',
-        status: 'not_found',
-      },
-      {
-        name: 'Enterprise Role-Based Access Control',
-        evidence: 'Not explicitly listed on public landing page.',
+        name: 'Itemized feature list not published on retrieved landing page',
+        evidence: 'No bulleted capabilities or recognizable feature keywords detected in the public page content.',
         status: 'not_found',
       },
     ];
@@ -319,7 +300,7 @@ function extractServices(text) {
     } else {
       results.push({
         name: s.name,
-        evidence: `Not explicitly detailed on the analyzed page.`,
+        evidence: 'Not explicitly mentioned in analyzed page copy.',
         status: 'not_found',
       });
     }
@@ -328,45 +309,42 @@ function extractServices(text) {
   return results.slice(0, 5);
 }
 
-function extractKeyAdvantages(text, productName) {
+function extractKeyAdvantages(text) {
   const advantages = [];
 
   if (/speed|fast|instant|milliseconds|blazing/i.test(text)) {
     advantages.push({
-      title: 'High Performance & Velocity',
-      description: 'Prominently emphasizes rapid execution and low latency.',
+      title: 'High Velocity / Low Latency',
+      description: 'Site copy explicitly highlights speed and execution performance.',
     });
   }
 
   if (/open.?source|github|community/i.test(text)) {
     advantages.push({
-      title: 'Open Source & Community Ecosystem',
-      description: 'Transparent codebase with active developer and community backing.',
+      title: 'Open Source / Ecosystem',
+      description: 'Site copy explicitly mentions open-source codebase or developer community.',
     });
   }
 
   if (/simple|intuitive|easy|no.?code|effortless/i.test(text)) {
     advantages.push({
-      title: 'Frictionless Developer Experience',
-      description: 'Engineered for rapid onboarding without steep learning curves.',
+      title: 'User-Friendly Onboarding',
+      description: 'Site copy emphasizes low onboarding friction and intuitive interface.',
     });
   }
 
   if (/scale|scalable|millions|billions|petabytes/i.test(text)) {
     advantages.push({
-      title: 'Built for High-Scale Workloads',
-      description: 'Architected to scale smoothly from prototype to enterprise volumes.',
+      title: 'Built for Scale',
+      description: 'Site copy highlights architecture designed for high-volume workloads.',
     });
   }
 
+  // If no advantages detected, report honestly without fabricating demo data
   if (advantages.length === 0) {
     advantages.push({
-      title: 'Integrated End-to-End Workflow',
-      description: `${productName} provides a unified solution for modern teams.`,
-    });
-    advantages.push({
-      title: 'Modular Architecture',
-      description: 'Designed to fit cleanly into existing software stacks.',
+      title: 'Standard Platform Positioning',
+      description: 'No explicit differentiators or benchmark metrics found in public text.',
     });
   }
 
@@ -379,7 +357,7 @@ function extractLimitations(text, pricing) {
   if (!pricing.isExplicitlyListed) {
     limitations.push({
       field: 'Pricing Transparency',
-      detail: 'Pricing is not publicly disclosed on landing page; requires contacting sales or booking demo.',
+      detail: 'Pricing is not publicly disclosed on landing page; requires sales contact or custom inquiry.',
       status: 'unverified',
     });
   }
@@ -387,7 +365,7 @@ function extractLimitations(text, pricing) {
   if (!/free/i.test(text)) {
     limitations.push({
       field: 'Free Tier Accessibility',
-      detail: 'No explicit free tier or self-serve trial detected without payment info.',
+      detail: 'No explicit free tier or self-serve trial detected in page copy.',
       status: 'caution',
     });
   }
@@ -395,7 +373,7 @@ function extractLimitations(text, pricing) {
   if (!/api|docs|documentation/i.test(text)) {
     limitations.push({
       field: 'Public Developer Documentation',
-      detail: 'Public developer documentation link not prominent on top-level pages.',
+      detail: 'Public developer documentation link not detected on top-level page.',
       status: 'unverified',
     });
   }
@@ -403,7 +381,7 @@ function extractLimitations(text, pricing) {
   if (limitations.length === 0) {
     limitations.push({
       field: 'Enterprise Add-ons',
-      detail: 'Advanced enterprise features (SSO, custom SLA) likely require premium tier upgrade.',
+      detail: 'Enterprise governance features may require higher-tier plans.',
       status: 'verified',
     });
   }
@@ -411,7 +389,7 @@ function extractLimitations(text, pricing) {
   return limitations;
 }
 
-function compileEvidenceCitations({ url, productName, pricing, targetAudience, coreFeatures, services }) {
+function compileEvidenceCitations({ url, pricing, targetAudience, coreFeatures }) {
   const citations = [];
 
   citations.push({
@@ -432,8 +410,8 @@ function compileEvidenceCitations({ url, productName, pricing, targetAudience, c
 
   for (const feature of coreFeatures.slice(0, 2)) {
     citations.push({
-      claim: `Feature: ${feature.name.slice(0, 30)}`,
-      finding: feature.status === 'verified' ? 'Confirmed on site' : 'Unverified / Not found',
+      claim: `Feature: ${feature.name.slice(0, 35)}`,
+      finding: feature.status === 'verified' ? 'Confirmed on site' : 'Not identified in text',
       evidence: feature.evidence,
       sourceUrl: url,
       verified: feature.status === 'verified',

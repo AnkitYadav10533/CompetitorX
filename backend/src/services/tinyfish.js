@@ -8,11 +8,11 @@ const turndownService = new TurndownService({
 });
 
 // Configure Turndown to clean up noisy elements
-turndownService.remove(['script', 'style', 'noscript', 'iframe', 'svg', 'canvas', 'footer', 'nav']);
+turndownService.remove(['script', 'style', 'noscript', 'iframe', 'svg', 'canvas', 'footer', 'nav', 'header']);
 
 /**
- * Fetch website content using TinyFish Fetch API (POST https://api.fetch.tinyfish.ai)
- * with robust direct fallback when no key is set or when API rate limits/errors occur.
+ * Fetch live website content using TinyFish Fetch API (POST https://api.fetch.tinyfish.ai)
+ * with direct browser-grade HTTP retrieval for live user-provided URLs.
  */
 export async function fetchWebsiteContent(urls, apiKey = null) {
   const effectiveKey = apiKey || process.env.TINYFISH_API_KEY;
@@ -20,7 +20,7 @@ export async function fetchWebsiteContent(urls, apiKey = null) {
 
   logs.push({
     step: 'init',
-    message: `Initiating research agent for ${urls.length} target URLs`,
+    message: `Initiating live web research for user-provided URLs: ${urls.join(' and ')}`,
     timestamp: new Date().toISOString(),
   });
 
@@ -29,7 +29,7 @@ export async function fetchWebsiteContent(urls, apiKey = null) {
     try {
       logs.push({
         step: 'tinyfish_request',
-        message: 'Calling TinyFish Fetch API (https://api.fetch.tinyfish.ai)...',
+        message: 'Connecting to live TinyFish Web Agent API (https://api.fetch.tinyfish.ai)...',
         timestamp: new Date().toISOString(),
       });
 
@@ -48,7 +48,7 @@ export async function fetchWebsiteContent(urls, apiKey = null) {
       if (response.data && Array.isArray(response.data.results) && response.data.results.length > 0) {
         logs.push({
           step: 'tinyfish_success',
-          message: `Successfully retrieved ${response.data.results.length} pages via TinyFish API`,
+          message: `Successfully retrieved live page content for ${response.data.results.length} URLs via TinyFish`,
           timestamp: new Date().toISOString(),
         });
 
@@ -71,10 +71,10 @@ export async function fetchWebsiteContent(urls, apiKey = null) {
           if (!resultMap[url]) {
             logs.push({
               step: 'tinyfish_partial_fallback',
-              message: `URL ${url} not returned by TinyFish. Performing fallback fetch...`,
+              message: `URL ${url} not returned by TinyFish. Fetching directly from live site...`,
               timestamp: new Date().toISOString(),
             });
-            resultMap[url] = await fallbackFetchUrl(url, logs);
+            resultMap[url] = await fetchLiveUrlContent(url, logs);
           }
         }
 
@@ -87,23 +87,23 @@ export async function fetchWebsiteContent(urls, apiKey = null) {
     } catch (err) {
       const errMsg = err.response?.data?.message || err.message;
       logs.push({
-        step: 'tinyfish_api_warning',
-        message: `TinyFish API request returned: ${errMsg}. Switching seamlessly to direct fetch engine...`,
+        step: 'tinyfish_api_notice',
+        message: `TinyFish API returned: ${errMsg}. Fetching live website content directly...`,
         timestamp: new Date().toISOString(),
       });
     }
   } else {
     logs.push({
-      step: 'no_key_notice',
-      message: 'No TinyFish API key configured. Utilizing direct browser-rendered web retrieval engine...',
+      step: 'direct_agent_init',
+      message: 'Extracting live page content directly from user-provided URLs...',
       timestamp: new Date().toISOString(),
     });
   }
 
-  // Fallback: Direct Fetch Engine
+  // Live direct retrieval from the user's URLs
   const resultMap = {};
   for (const url of urls) {
-    resultMap[url] = await fallbackFetchUrl(url, logs);
+    resultMap[url] = await fetchLiveUrlContent(url, logs);
   }
 
   return {
@@ -114,12 +114,13 @@ export async function fetchWebsiteContent(urls, apiKey = null) {
 }
 
 /**
- * Direct web fetcher that renders and parses pages, extracting token-efficient markdown
+ * Directly fetches and extracts clean markdown & metadata from the user's live URL.
+ * Throws genuine errors if the URL cannot be reached so the user sees real status.
  */
-async function fallbackFetchUrl(url, logs) {
+async function fetchLiveUrlContent(url, logs) {
   logs.push({
-    step: 'direct_fetch_start',
-    message: `Fetching ${url} directly with headers & cheerio parsing...`,
+    step: 'live_fetch_start',
+    message: `Sending HTTP request to user website: ${url}`,
     timestamp: new Date().toISOString(),
   });
 
@@ -127,51 +128,55 @@ async function fallbackFetchUrl(url, logs) {
     const res = await axios.get(url, {
       headers: {
         'User-Agent':
-          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 CompetitorX/1.0',
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 CompetitorX/1.0',
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
       },
-      timeout: 15000,
+      timeout: 18000,
       maxRedirects: 5,
     });
 
     const html = res.data;
+    if (typeof html !== 'string') {
+      throw new Error(`The URL ${url} did not return HTML content.`);
+    }
+
     const $ = cheerio.load(html);
 
-    // Extract title
+    // Extract real title from user site
     const title =
       $('title').first().text().trim() ||
       $('meta[property="og:title"]').attr('content') ||
       $('meta[name="twitter:title"]').attr('content') ||
       extractDomainName(url);
 
-    // Extract description
+    // Extract real description from user site
     const description =
       $('meta[name="description"]').attr('content') ||
       $('meta[property="og:description"]').attr('content') ||
       $('meta[name="twitter:description"]').attr('content') ||
       '';
 
-    // Remove noise elements before markdown conversion
-    $('script, style, noscript, svg, canvas, iframe, nav, footer, header, .nav, .footer, .header, #cookie-banner, .cookie-banner').remove();
+    // Remove scripts, stylesheets, and irrelevant chrome
+    $('script, style, noscript, svg, canvas, iframe, nav, footer, header, #cookie-banner, .cookie-banner').remove();
 
-    // Prefer main or article or body
-    let mainContentHtml = $('main').html() || $('article').html() || $('#content').html() || $('body').html() || '';
+    // Prefer main content element, or fallback to body
+    let contentHtml = $('main').html() || $('article').html() || $('#content').html() || $('body').html() || '';
     let markdown = '';
     try {
-      markdown = turndownService.turndown(mainContentHtml);
-    } catch (e) {
-      markdown = $('body').text();
+      markdown = turndownService.turndown(contentHtml);
+    } catch {
+      markdown = $('body').text().replace(/\s+/g, ' ').trim();
     }
 
-    // Trim markdown if extremely long to keep token usage sane (max ~15,000 chars)
-    if (markdown.length > 20000) {
-      markdown = markdown.substring(0, 20000) + '\n\n...[content truncated for token efficiency]';
+    // Limit markdown length to token-sane size
+    if (markdown.length > 25000) {
+      markdown = markdown.substring(0, 25000) + '\n\n...[Page content parsed for comparison]';
     }
 
     logs.push({
-      step: 'direct_fetch_success',
-      message: `Successfully parsed ${url} (Title: "${title.slice(0, 40)}...", Length: ${markdown.length} chars)`,
+      step: 'live_fetch_success',
+      message: `Retrieved live content for ${url} (Title: "${title.slice(0, 45)}", Length: ${markdown.length} chars)`,
       timestamp: new Date().toISOString(),
     });
 
@@ -187,24 +192,15 @@ async function fallbackFetchUrl(url, logs) {
     };
   } catch (err) {
     logs.push({
-      step: 'direct_fetch_error',
-      message: `Direct fetch for ${url} encountered: ${err.message}. Generating contextual domain profile.`,
+      step: 'live_fetch_error',
+      message: `Failed to fetch live content from ${url}: ${err.message}`,
       timestamp: new Date().toISOString(),
     });
 
-    // Provide robust graceful profile based on domain name
-    const domain = extractDomainName(url);
-    return {
-      url,
-      finalUrl: url,
-      title: `${domain.charAt(0).toUpperCase() + domain.slice(1)} Platform`,
-      description: `Official web presence for ${domain}`,
-      markdown: `# ${domain}\n\nLive page could not be directly loaded due to network or anti-bot restrictions (${err.message}). Domain profile generated from domain authority index.`,
-      retrievalMethod: 'cached_fallback',
-      status: 'fallback',
-      error: err.message,
-      fetchedAt: new Date().toISOString(),
-    };
+    // Throw clear error so user knows their specific URL was not reachable
+    const error = new Error(`Could not access live website at ${url} (${err.message}). Please verify that the URL is public, correctly typed, and accessible.`);
+    error.statusCode = 422;
+    throw error;
   }
 }
 
