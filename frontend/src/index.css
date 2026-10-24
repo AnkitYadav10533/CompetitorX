@@ -78,6 +78,29 @@ body {
   overflow-x: hidden;
 }
 
+/* Custom User-Provided Background Image */
+.app-bg-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url('/background.png');
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.22;
+  filter: brightness(0.65) contrast(1.15);
+  transition: opacity 0.3s ease, filter 0.3s ease;
+}
+
+[data-theme="light"] .app-bg-overlay {
+  opacity: 0.92;
+  filter: none;
+}
+
 /* Background Ambient Neon Glows */
 .ambient-glow {
   position: fixed;

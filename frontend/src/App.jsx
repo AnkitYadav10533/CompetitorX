@@ -124,6 +124,9 @@ export default function App() {
 
   return (
     <div className="app-container">
+      {/* User-provided full background image */}
+      <div className="app-bg-overlay"></div>
+
       {/* Background ambient neon glow spheres */}
       <div className="ambient-glow glow-cyan"></div>
       <div className="ambient-glow glow-purple"></div>
