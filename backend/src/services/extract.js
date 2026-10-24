@@ -113,7 +113,7 @@ function determineTagline(description, markdown, productName) {
 }
 
 function extractPricingDetails(text) {
-  const priceRegex = /(\$\d+(?:\.\d{2})?(?:\s*(?:\/|\s*per\s*)(?:mo|month|user|seat|year|yr))?)|(?:€\d+(?:\.\d{2})?)|(?:£\d+(?:\.\d{2})?)|(?:free\s+trial)|(?:free\s+tier)|(?:starts\s+at\s+\$\d+)/gi;
+  const priceRegex = /(?:₹\s*\d+(?:,\d+)*(?:\.\d{2})?)|(?:rs\.?\s*\d+(?:,\d+)*(?:\.\d{2})?)|(?:inr\s*\d+(?:,\d+)*(?:\.\d{2})?)|(\$\d+(?:\.\d{2})?(?:\s*(?:\/|\s*per\s*)(?:mo|month|user|seat|year|yr))?)|(?:€\d+(?:\.\d{2})?)|(?:£\d+(?:\.\d{2})?)|(?:free\s+trial)|(?:free\s+tier)|(?:starts\s+at\s+[\$₹€£]\d+)/gi;
   const tierRegex = /\b(free|starter|standard|basic|pro|professional|growth|team|business|enterprise|unlimited)\s+(?:plan|tier|edition)/gi;
   const freeRegex = /\b(free\s+forever|free\s+plan|free\s+tier|start\s+for\s+free|100%\s+free|no\s+credit\s+card\s+required)\b/i;
 
@@ -126,10 +126,17 @@ function extractPricingDetails(text) {
     let model = 'Freemium';
 
     if (matches.length > 0) {
-      const explicitPrice = matches.find((m) => m.startsWith('$') || m.startsWith('€') || m.startsWith('£'));
+      const explicitPrice = matches.find((m) =>
+        m.startsWith('$') ||
+        m.startsWith('€') ||
+        m.startsWith('£') ||
+        m.startsWith('₹') ||
+        /^rs/i.test(m) ||
+        /^inr/i.test(m)
+      );
       if (explicitPrice) {
-        startingPrice = explicitPrice;
-        model = 'Subscription';
+        startingPrice = explicitPrice.trim();
+        model = explicitPrice.includes('₹') || /^rs/i.test(explicitPrice) ? 'Direct / Retail Price' : 'Subscription';
       }
     }
 

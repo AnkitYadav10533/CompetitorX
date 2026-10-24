@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Sparkles,
   Download,
@@ -9,6 +9,8 @@ import {
   Cpu,
   ChevronDown,
   ChevronUp,
+  Sun,
+  Moon,
 } from 'lucide-react';
 
 import UrlInput from './components/UrlInput';
@@ -30,6 +32,18 @@ export default function App() {
   const [result, setResult] = useState(null);
   const [showLogs, setShowLogs] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('competitorx-theme') || 'dark';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('competitorx-theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
 
   const handleCompare = async () => {
     if (!urlA.trim() || !urlB.trim()) {
@@ -129,6 +143,24 @@ export default function App() {
         </div>
 
         <div className="header-meta">
+          <button
+            onClick={toggleTheme}
+            className="theme-toggle-btn"
+            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+            type="button"
+          >
+            {theme === 'dark' ? (
+              <>
+                <Sun size={15} className="theme-icon sun" />
+                <span>Light</span>
+              </>
+            ) : (
+              <>
+                <Moon size={15} className="theme-icon moon" />
+                <span>Dark</span>
+              </>
+            )}
+          </button>
           <div className="agent-badge">
             <span className="live-pulse"></span>
             <span>Live Web Agent Active</span>
