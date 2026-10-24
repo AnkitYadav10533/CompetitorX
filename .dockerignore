@@ -1,0 +1,9 @@
+node_modules
+*/node_modules
+.git
+.agents
+.env
+.env.local
+*.log
+dist
+frontend/dist
