@@ -1,0 +1,297 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Sparkles,
+  Layers,
+  Download,
+  Share2,
+  Terminal,
+  Activity,
+  AlertCircle,
+  CheckCircle2,
+  Cpu,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
+
+import UrlInput from './components/UrlInput';
+import ProductCard from './components/ProductCard';
+import ComparisonTable from './components/ComparisonTable';
+import RecommendationCard from './components/RecommendationCard';
+import SourceLinks from './components/SourceLinks';
+import LoadingState from './components/LoadingState';
+import { compareWebsites, fetchPresets, fetchHealth } from './services/api';
+
+export default function App() {
+  const [urlA, setUrlA] = useState('https://supabase.com');
+  const [urlB, setUrlB] = useState('https://firebase.google.com');
+  const [userRequirement, setUserRequirement] = useState('Best for open source developer wanting SQL database');
+  const [apiKey, setApiKey] = useState('');
+  const [presets, setPresets] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [result, setResult] = useState(null);
+  const [showLogs, setShowLogs] = useState(false);
+  const [backendHealth, setBackendHealth] = useState(null);
+
+  // Load presets and check health on mount
+  useEffect(() => {
+    async function init() {
+      const p = await fetchPresets();
+      setPresets(p);
+      const h = await fetchHealth();
+      setBackendHealth(h);
+    }
+    init();
+  }, []);
+
+  const handleSelectPreset = (preset) => {
+    setUrlA(preset.urlA);
+    setUrlB(preset.urlB);
+    setUserRequirement(preset.suggestedRequirement);
+    setError(null);
+  };
+
+  const handleCompare = async () => {
+    if (!urlA.trim() || !urlB.trim()) {
+      setError('Please provide two valid website URLs to compare.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const data = await compareWebsites({
+        urlA,
+        urlB,
+        userRequirement,
+        apiKey,
+      });
+      setResult(data);
+    } catch (err) {
+      console.error('Comparison error:', err);
+      setError(err.message || 'Failed to compare websites. Please verify URLs.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExportMarkdown = () => {
+    if (!result) return;
+    const { products, matrix, recommendation } = result;
+    const pA = products.productA;
+    const pB = products.productB;
+
+    let md = `# CompetitorX Comparison Report\n\n`;
+    md += `**Date:** ${new Date().toLocaleDateString()}\n`;
+    md += `**Target A:** [${pA.productName}](${pA.sourceUrl})\n`;
+    md += `**Target B:** [${pB.productName}](${pB.sourceUrl})\n`;
+    md += `**Evaluation Lens:** ${recommendation.requirement}\n\n`;
+
+    md += `## 🏆 AI Recommendation\n`;
+    md += `**Winner:** ${recommendation.winner} (${recommendation.winnerScore}/10)\n`;
+    md += `**Verdict:** ${recommendation.headline}\n\n`;
+    md += `${recommendation.summary}\n\n`;
+
+    md += `## 📊 Comparison Matrix\n\n`;
+    md += `| Attribute | ${pA.productName} | ${pB.productName} |\n`;
+    md += `| :--- | :--- | :--- |\n`;
+
+    for (const row of matrix) {
+      md += `| **${row.attribute}** | ${row.productA.value} (${row.productA.status}) | ${row.productB.value} (${row.productB.status}) |\n`;
+    }
+
+    md += `\n## 🔗 Verifiable Sources\n`;
+    md += `- [${pA.productName}](${pA.sourceUrl}) (Evidence Confidence: ${pA.confidenceScore}%)\n`;
+    md += `- [${pB.productName}](${pB.sourceUrl}) (Evidence Confidence: ${pB.confidenceScore}%)\n\n`;
+    md += `*Generated automatically by CompetitorX AI Agent powered by TinyFish.*`;
+
+    const blob = new Blob([md], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `competitorx-${pA.productName.toLowerCase()}-vs-${pB.productName.toLowerCase()}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="app-container">
+      {/* Background ambient neon glow spheres */}
+      <div className="ambient-glow glow-cyan"></div>
+      <div className="ambient-glow glow-purple"></div>
+
+      {/* Navigation Header */}
+      <header className="app-header">
+        <div className="header-brand">
+          <div className="logo-badge">
+            <Cpu size={22} className="logo-icon" />
+          </div>
+          <div className="brand-titles">
+            <h1 className="brand-name">
+              Competitor<span className="brand-gradient">X</span>
+            </h1>
+            <span className="brand-tagline">AI-Powered Website Comparison Agent</span>
+          </div>
+        </div>
+
+        <div className="header-meta">
+          <div className="agent-badge">
+            <span className="live-pulse"></span>
+            <span>TinyFish Agent Active</span>
+          </div>
+          {result && (
+            <button
+              onClick={handleExportMarkdown}
+              className="export-btn"
+              title="Export Report to Markdown"
+            >
+              <Download size={14} />
+              <span>Export Report</span>
+            </button>
+          )}
+        </div>
+      </header>
+
+      {/* Main Content Container */}
+      <main className="app-main">
+        {/* Hero Section */}
+        <section className="hero-section">
+          <div className="hero-badge">
+            <Sparkles size={14} className="accent-icon-sparkle" />
+            <span>Autonomous Web Research & Grounded Evidence Engine</span>
+          </div>
+          <h2 className="hero-headline">
+            Compare Any Two Products with <span className="headline-highlight">Evidence-Backed</span> Intelligence
+          </h2>
+          <p className="hero-description">
+            Enter two product URLs. CompetitorX uses TinyFish to retrieve live web content, extract pricing models,
+            audit features, verify target audiences, and synthesize side-by-side comparisons grounded in source citations.
+          </p>
+        </section>
+
+        {/* URL Inputs & Preset Controls */}
+        <UrlInput
+          urlA={urlA}
+          setUrlA={setUrlA}
+          urlB={urlB}
+          setUrlB={setUrlB}
+          userRequirement={userRequirement}
+          setUserRequirement={setUserRequirement}
+          apiKey={apiKey}
+          setApiKey={setApiKey}
+          onCompare={handleCompare}
+          loading={loading}
+          presets={presets}
+          onSelectPreset={handleSelectPreset}
+        />
+
+        {/* Error Notification */}
+        {error && (
+          <div className="error-banner glass-panel">
+            <AlertCircle size={20} className="error-icon" />
+            <div className="error-content">
+              <strong>Comparison Encountered An Issue</strong>
+              <p>{error}</p>
+            </div>
+            <button className="error-dismiss" onClick={() => setError(null)}>
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* Loading Radar Timeline */}
+        {loading && <LoadingState urlA={urlA} urlB={urlB} />}
+
+        {/* Comparison Results Dashboard */}
+        {result && !loading && (
+          <div className="results-dashboard">
+            {/* Results Status Header */}
+            <div className="results-meta-bar glass-panel">
+              <div className="meta-left">
+                <CheckCircle2 size={16} className="icon-success" />
+                <span>
+                  Comparison generated in real-time via{' '}
+                  <strong>
+                    {result.meta.provider === 'tinyfish'
+                      ? 'TinyFish Headless Cloud Agent'
+                      : 'Direct Browser Web Agent'}
+                  </strong>
+                </span>
+              </div>
+              <div className="meta-right">
+                <button
+                  className="logs-toggle-btn"
+                  onClick={() => setShowLogs(!showLogs)}
+                >
+                  <Terminal size={14} />
+                  <span>Agent Execution Trace ({result.meta.retrievalLogs?.length || 0} steps)</span>
+                  {showLogs ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Collapsible Execution Log Trace */}
+            {showLogs && (
+              <div className="logs-terminal glass-panel">
+                <div className="terminal-header">
+                  <span className="term-dot red"></span>
+                  <span className="term-dot yellow"></span>
+                  <span className="term-dot green"></span>
+                  <span className="term-title">Agent Execution Trace & TinyFish Call Log</span>
+                </div>
+                <div className="terminal-body">
+                  {result.meta.retrievalLogs?.map((log, lIdx) => (
+                    <div key={lIdx} className="terminal-line">
+                      <span className="term-time">[{new Date(log.timestamp).toLocaleTimeString()}]</span>
+                      <span className="term-step">[{log.step}]</span>
+                      <span className="term-msg">{log.message}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* AI Recommendation Banner */}
+            <RecommendationCard
+              recommendation={result.recommendation}
+              productA={result.products.productA}
+              productB={result.products.productB}
+            />
+
+            {/* Product Overview Cards */}
+            <div className="products-grid">
+              <ProductCard product={result.products.productA} type="A" />
+              <ProductCard product={result.products.productB} type="B" />
+            </div>
+
+            {/* Side-by-Side Comparison Matrix */}
+            <ComparisonTable
+              matrix={result.matrix}
+              productA={result.products.productA}
+              productB={result.products.productB}
+            />
+
+            {/* Verifiable Source Links & Citations */}
+            <SourceLinks sources={result.sources} />
+          </div>
+        )}
+      </main>
+
+      {/* Footer */}
+      <footer className="app-footer">
+        <div className="footer-content">
+          <p className="footer-text">
+            <strong>CompetitorX</strong> — AI-Powered Website Comparison Agent.
+            Built with React, Express, and TinyFish Live Web Agent Infrastructure.
+          </p>
+          <div className="footer-links">
+            <span className="footer-tag">⚡ Evidence Grounded</span>
+            <span className="footer-tag">🐠 TinyFish Integration</span>
+            <span className="footer-tag">🛡️ Zero Hallucinations</span>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
